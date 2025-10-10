@@ -195,8 +195,92 @@ end
 -- Ejemplo de uso
 showFriendNotification("")
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
 
--- LocalScript en StarterPlayerScripts
+local player = Players.LocalPlayer
+local gunSettings = ReplicatedStorage:WaitForChild("TREKModules"):WaitForChild("GunSettings")
+
+-- Recopilar todos los nombres de armas del GunSettings
+local nombresArmas = {}
+for _, armaModule in pairs(gunSettings:GetChildren()) do
+    if armaModule:IsA("ModuleScript") then
+        table.insert(nombresArmas, armaModule.Name)
+    end
+end
+
+-- Función rainbow
+local function rainbowColor(t)
+    local r = math.sin(t*2)*0.5+0.5
+    local g = math.sin(t*2+2)*0.5+0.5
+    local b = math.sin(t*2+4)*0.5+0.5
+    return Color3.new(r,g,b)
+end
+
+-- Función que aplica rainbow **sincronizado** a todas las partes de un modelo
+local function applyRainbowSync(model, t)
+    for _, part in pairs(model:GetDescendants()) do
+        if part:IsA("BasePart") then
+            part.Material = Enum.Material.Neon
+            -- Misma variable t para todas las partes → sincronizado
+            part.Color = rainbowColor(t)
+        end
+    end
+end
+
+-- Mantener un ciclo de tiempo independiente para cada arma
+local function rainbowArmaLoop(model)
+    spawn(function()
+        local t = 0
+        while model.Parent do
+            applyRainbowSync(model, t)
+            t = t + 0.05
+            task.wait(0.05)
+        end
+    end)
+end
+
+-- Función para buscar todas las armas actuales y aplicar rainbow
+local function actualizarArmas()
+    local character = player.Character
+    for _, nombre in pairs(nombresArmas) do
+        -- Workspace
+        local armaWS = workspace:FindFirstChild(nombre)
+        if armaWS and armaWS:IsA("Model") and not armaWS:FindFirstChild("RainbowLoop") then
+            local marker = Instance.new("BoolValue")
+            marker.Name = "RainbowLoop"
+            marker.Parent = armaWS
+            rainbowArmaLoop(armaWS)
+        end
+
+        -- Character
+        if character then
+            local armaChar = character:FindFirstChild(nombre)
+            if armaChar and armaChar:IsA("Tool") and not armaChar:FindFirstChild("RainbowLoop") then
+                local marker = Instance.new("BoolValue")
+                marker.Name = "RainbowLoop"
+                marker.Parent = armaChar
+                rainbowArmaLoop(armaChar)
+            end
+        end
+
+        -- Backpack
+        local armaBP = player.Backpack:FindFirstChild(nombre)
+        if armaBP and armaBP:IsA("Tool") and not armaBP:FindFirstChild("RainbowLoop") then
+            local marker = Instance.new("BoolValue")
+            marker.Name = "RainbowLoop"
+            marker.Parent = armaBP
+            rainbowArmaLoop(armaBP)
+        end
+    end
+end
+
+spawn(function()
+    while true do
+        actualizarArmas()
+        task.wait(1)
+    end
+end)
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
